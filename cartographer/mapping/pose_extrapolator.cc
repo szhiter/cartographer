@@ -91,6 +91,21 @@ void PoseExtrapolator::AddPose(const common::Time time,
 void PoseExtrapolator::AddImuData(const sensor::ImuData& imu_data) {
   CHECK(timed_pose_queue_.empty() ||
         imu_data.time >= timed_pose_queue_.back().time);
+  // 20250221 for sensor check by cz
+  if (!timed_pose_queue_.empty()) {
+    const double imu_time_delta =
+        common::ToSeconds(imu_data.time - timed_pose_queue_.back().time);
+    if (imu_time_delta > (1. / 10) * 2) {
+      LOG(WARNING) << "Imu-pose interval is " << imu_time_delta << " s.";
+    }
+  }
+  if (!imu_data_.empty()) {
+    const double imu_time_delta =
+        common::ToSeconds(imu_data.time - imu_data_.back().time);
+    if (imu_time_delta > (1. / 50) * 2) {
+      LOG(WARNING) << "Imu-imu interval is " << imu_time_delta << " s.";
+    }
+  }
   imu_data_.push_back(imu_data);
   TrimImuData();
 }
