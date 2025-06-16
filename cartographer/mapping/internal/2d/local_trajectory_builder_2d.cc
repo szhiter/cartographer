@@ -140,7 +140,11 @@ LocalTrajectoryBuilder2D::AddRangeData(
   range_data_poses.reserve(synchronized_data.ranges.size());
   bool warned = false;
   for (const auto& range : synchronized_data.ranges) {
-    common::Time time_point = time + common::FromSeconds(range.point_time.time);
+    // 20250325 distortion calibration
+//    common::Time time_point = time + common::FromSeconds(range.point_time.time);
+    common::Time time_point = options_.use_distortion_calibration()
+        ? time + common::FromSeconds(range.point_time.time)
+        : time;
     if (time_point < extrapolator_->GetLastExtrapolatedTime()) {
       if (!warned) {
         LOG(ERROR)
@@ -282,8 +286,21 @@ LocalTrajectoryBuilder2D::InsertIntoSubmap(
     const sensor::PointCloud& filtered_gravity_aligned_point_cloud,
     const transform::Rigid3d& pose_estimate,
     const Eigen::Quaterniond& gravity_alignment) {
-  if (motion_filter_.IsSimilar(time, pose_estimate)) {
+  // 20250331 modify motion filter
+//  if (motion_filter_.IsSimilar(time, pose_estimate)) {
+//    return nullptr;
+//  }
+  if (active_submaps_.submaps().size() > 1 &&
+      motion_filter_.IsSimilar(time, pose_estimate)) {
     return nullptr;
+  }
+  // 20250331 rotation check
+  if (options_.use_rotation_check()) {
+    const auto angular_velocity = extrapolator_->GetAngularVelocity();
+    if (angular_velocity.norm() >= 0.5) {
+      LOG(INFO) << "Angular velocity is " << angular_velocity.norm() << " rad/s.";
+      return nullptr;
+    }
   }
   std::vector<std::shared_ptr<const Submap2D>> insertion_submaps =
       active_submaps_.InsertRangeData(range_data_in_local);
@@ -321,13 +338,22 @@ void LocalTrajectoryBuilder2D::InitializeExtrapolator(const common::Time time) {
   }
   CHECK(!options_.pose_extrapolator_options().use_imu_based());
   // TODO(gaschler): Consider using InitializeWithImu as 3D does.
+  // 20250328 modify pose extrapolator
+//  extrapolator_ = absl::make_unique<PoseExtrapolator>(
+//      ::cartographer::common::FromSeconds(options_.pose_extrapolator_options()
+//                                              .constant_velocity()
+//                                              .pose_queue_duration()),
+//      options_.pose_extrapolator_options()
+//          .constant_velocity()
+//          .imu_gravity_time_constant());
   extrapolator_ = absl::make_unique<PoseExtrapolator>(
       ::cartographer::common::FromSeconds(options_.pose_extrapolator_options()
                                               .constant_velocity()
                                               .pose_queue_duration()),
       options_.pose_extrapolator_options()
           .constant_velocity()
-          .imu_gravity_time_constant());
+          .imu_gravity_time_constant(),
+      options_.pose_extrapolator_options().pose_extrapolate_mode());
   extrapolator_->AddPose(time, transform::Rigid3d::Identity());
 }
 

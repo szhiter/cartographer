@@ -20,6 +20,9 @@ import "cartographer/mapping/proto/pose_graph/constraint_builder_options.proto";
 import "cartographer/mapping/proto/pose_graph/optimization_problem_options.proto";
 
 message PoseGraphOptions {
+  // 20250326 loop closure
+  bool use_loop_closure = 12;
+
   // Online loop closure: If positive, will run the loop closure while the map
   // is built.
   int32 optimize_every_n_nodes = 1;

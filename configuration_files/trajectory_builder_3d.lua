@@ -71,6 +71,8 @@ TRAJECTORY_BUILDER_3D = {
   imu_gravity_time_constant = 10.,
   pose_extrapolator = {
     use_imu_based = false,
+    -- 20250328 modify pose extrapolator
+    pose_extrapolate_mode = 0,
     constant_velocity = {
       imu_gravity_time_constant = 10.,
       pose_queue_duration = 0.001,

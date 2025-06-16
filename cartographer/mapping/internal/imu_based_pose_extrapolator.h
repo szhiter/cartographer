@@ -59,6 +59,10 @@ class ImuBasedPoseExtrapolator : public PoseExtrapolatorInterface {
   // Gravity alignment estimate.
   Eigen::Quaterniond EstimateGravityOrientation(common::Time time) override;
 
+  // 20250331 rotation check
+  Eigen::Vector3d GetLinearVelocity() override;
+  Eigen::Vector3d GetAngularVelocity() override;
+
  private:
   template <typename T>
   void TrimDequeData(std::deque<T>* data);

@@ -25,10 +25,19 @@
 namespace cartographer {
 namespace mapping {
 
+// 20250328 modify pose extrapolator
+//PoseExtrapolator::PoseExtrapolator(const common::Duration pose_queue_duration,
+//                                   double imu_gravity_time_constant)
+//    : pose_queue_duration_(pose_queue_duration),
+//      gravity_time_constant_(imu_gravity_time_constant),
+//      cached_extrapolated_pose_{common::Time::min(),
+//                                transform::Rigid3d::Identity()} {}
 PoseExtrapolator::PoseExtrapolator(const common::Duration pose_queue_duration,
-                                   double imu_gravity_time_constant)
+                                   double imu_gravity_time_constant,
+                                   int pose_extrapolate_mode)
     : pose_queue_duration_(pose_queue_duration),
       gravity_time_constant_(imu_gravity_time_constant),
+      pose_extrapolate_mode_(pose_extrapolate_mode),
       cached_extrapolated_pose_{common::Time::min(),
                                 transform::Rigid3d::Identity()} {}
 
@@ -67,6 +76,14 @@ common::Time PoseExtrapolator::GetLastExtrapolatedTime() const {
 
 void PoseExtrapolator::AddPose(const common::Time time,
                                const transform::Rigid3d& pose) {
+  // 20250221 sensor check
+  if (!timed_pose_queue_.empty()) {
+    const double time_delta =
+        common::ToSeconds(time - timed_pose_queue_.back().time);
+    if (std::abs(time_delta) > (1. / 12) * 2) {
+      LOG(INFO) << "Pose-pose interval is " << time_delta << " s.";
+    }
+  }
   if (imu_tracker_ == nullptr) {
     common::Time tracker_start = time;
     if (!imu_data_.empty()) {
@@ -91,12 +108,12 @@ void PoseExtrapolator::AddPose(const common::Time time,
 void PoseExtrapolator::AddImuData(const sensor::ImuData& imu_data) {
   CHECK(timed_pose_queue_.empty() ||
         imu_data.time >= timed_pose_queue_.back().time);
-  // 20250221 for sensor check
+  // 20250221 sensor check
   if (!timed_pose_queue_.empty()) {
     const double time_delta =
         common::ToSeconds(imu_data.time - timed_pose_queue_.back().time);
-    if (std::abs(time_delta) > (1. / 10) * 2) {
-      LOG(WARNING) << "Imu-pose interval is " << time_delta << " s.";
+    if (std::abs(time_delta) > (1. / 12) * 2) {
+//      LOG(INFO) << "Imu-pose interval is " << time_delta << " s.";
     }
   }
   if (!imu_data_.empty()) {
@@ -114,12 +131,12 @@ void PoseExtrapolator::AddOdometryData(
     const sensor::OdometryData& odometry_data) {
   CHECK(timed_pose_queue_.empty() ||
         odometry_data.time >= timed_pose_queue_.back().time);
-  // 20250221 for sensor check
+  // 20250221 sensor check
   if (!timed_pose_queue_.empty()) {
     const double time_delta =
         common::ToSeconds(odometry_data.time - timed_pose_queue_.back().time);
-    if (std::abs(time_delta) > (1. / 10) * 2) {
-      LOG(WARNING) << "Odom-pose interval is " << time_delta << " s.";
+    if (std::abs(time_delta) > (1. / 12) * 2) {
+//      LOG(INFO) << "Odom-pose interval is " << time_delta << " s.";
     }
   }
   if (!odometry_data_.empty()) {
@@ -162,6 +179,38 @@ void PoseExtrapolator::AddOdometryData(
 }
 
 transform::Rigid3d PoseExtrapolator::ExtrapolatePose(const common::Time time) {
+  // 20250328 modify pose extrapolator
+//  const TimedPose& newest_timed_pose = timed_pose_queue_.back();
+//  CHECK_GE(time, newest_timed_pose.time);
+//  if (cached_extrapolated_pose_.time != time) {
+//    const Eigen::Vector3d translation =
+//        ExtrapolateTranslation(time) + newest_timed_pose.pose.translation();
+//    const Eigen::Quaterniond rotation =
+//        newest_timed_pose.pose.rotation() *
+//        ExtrapolateRotation(time, extrapolation_imu_tracker_.get());
+//    cached_extrapolated_pose_ =
+//        TimedPose{time, transform::Rigid3d{translation, rotation}};
+//  }
+//  return cached_extrapolated_pose_.pose;
+  switch (pose_extrapolate_mode_) {
+    case 0:
+      LOG_FIRST_N(INFO, 1) << "Extrapolate default.";
+      return ExtrapolateDefault(time);
+    case 1:
+      LOG_FIRST_N(INFO, 1) << "Extrapolate from pose.";
+      return ExtrapolateFromPose(time);
+    case 2:
+      LOG_FIRST_N(INFO, 1) << "Extrapolate from odometry.";
+      return ExtrapolateFromOdometry(time);
+    default:
+      LOG_FIRST_N(INFO, 1) << "Extrapolate default.";
+      return ExtrapolateDefault(time);
+  }
+}
+
+// 20250328 modify pose extrapolator
+transform::Rigid3d PoseExtrapolator::ExtrapolateDefault(
+    const common::Time time) {
   const TimedPose& newest_timed_pose = timed_pose_queue_.back();
   CHECK_GE(time, newest_timed_pose.time);
   if (cached_extrapolated_pose_.time != time) {
@@ -169,7 +218,62 @@ transform::Rigid3d PoseExtrapolator::ExtrapolatePose(const common::Time time) {
         ExtrapolateTranslation(time) + newest_timed_pose.pose.translation();
     const Eigen::Quaterniond rotation =
         newest_timed_pose.pose.rotation() *
-        ExtrapolateRotation(time, extrapolation_imu_tracker_.get());
+            ExtrapolateRotation(time, extrapolation_imu_tracker_.get());
+    cached_extrapolated_pose_ =
+        TimedPose{time, transform::Rigid3d{translation, rotation}};
+  }
+  return cached_extrapolated_pose_.pose;
+}
+
+// 20250328 modify pose extrapolator
+transform::Rigid3d PoseExtrapolator::ExtrapolateFromPose(
+    const common::Time time) {
+  const TimedPose& newest_timed_pose = timed_pose_queue_.back();
+  CHECK_GE(time, newest_timed_pose.time);
+  if (cached_extrapolated_pose_.time != time) {
+    const double extrapolation_delta =
+        common::ToSeconds(time - newest_timed_pose.time);
+    const Eigen::Vector3d translation_delta =
+        extrapolation_delta * linear_velocity_from_poses_;
+    const Eigen::Vector3d translation =
+        translation_delta + newest_timed_pose.pose.translation();
+
+    const Eigen::Quaterniond rotation_delta =
+        transform::AngleAxisVectorToRotationQuaternion(
+            Eigen::Vector3d(
+                extrapolation_delta *  angular_velocity_from_poses_));
+    const Eigen::Quaterniond rotation =
+        newest_timed_pose.pose.rotation() * rotation_delta;
+
+    cached_extrapolated_pose_ =
+        TimedPose{time, transform::Rigid3d{translation, rotation}};
+  }
+  return cached_extrapolated_pose_.pose;
+}
+
+// 20250328 modify pose extrapolator
+transform::Rigid3d PoseExtrapolator::ExtrapolateFromOdometry(
+    const common::Time time) {
+  if (odometry_data_.size() < 2) {
+    return transform::Rigid3d::Identity();
+  }
+  const sensor::OdometryData& odometry_data_newest = odometry_data_.back();
+  CHECK_GE(time, odometry_data_newest.time);
+  if (cached_extrapolated_pose_.time != time) {
+    const double extrapolation_delta =
+        common::ToSeconds(time - odometry_data_newest.time);
+    const Eigen::Vector3d translation_delta =
+        extrapolation_delta * linear_velocity_from_odometry_;
+    const Eigen::Vector3d translation =
+        translation_delta + odometry_data_newest.pose.translation();
+
+    const Eigen::Quaterniond rotation_delta =
+        transform::AngleAxisVectorToRotationQuaternion(
+            Eigen::Vector3d(
+                extrapolation_delta *  angular_velocity_from_odometry_));
+    const Eigen::Quaterniond rotation =
+        odometry_data_newest.pose.rotation() * rotation_delta;
+
     cached_extrapolated_pose_ =
         TimedPose{time, transform::Rigid3d{translation, rotation}};
   }
@@ -181,6 +285,46 @@ Eigen::Quaterniond PoseExtrapolator::EstimateGravityOrientation(
   ImuTracker imu_tracker = *imu_tracker_;
   AdvanceImuTracker(time, &imu_tracker);
   return imu_tracker.orientation();
+}
+
+// 20250331 rotation check
+Eigen::Vector3d PoseExtrapolator::GetLinearVelocity() {
+  switch (pose_extrapolate_mode_) {
+    case 0:
+      if (odometry_data_.size() < 2) {
+        return linear_velocity_from_poses_;
+      }
+      return linear_velocity_from_odometry_;
+    case 1:
+      return linear_velocity_from_poses_;
+    case 2:
+      return linear_velocity_from_odometry_;
+    default:
+      if (odometry_data_.size() < 2) {
+        return linear_velocity_from_poses_;
+      }
+      return linear_velocity_from_odometry_;
+  }
+}
+
+// 20250331 rotation check
+Eigen::Vector3d PoseExtrapolator::GetAngularVelocity() {
+  switch (pose_extrapolate_mode_) {
+    case 0:
+      if (odometry_data_.size() < 2) {
+        return angular_velocity_from_poses_;
+      }
+      return angular_velocity_from_odometry_;
+    case 1:
+      return angular_velocity_from_poses_;
+    case 2:
+      return angular_velocity_from_odometry_;
+    default:
+      if (odometry_data_.size() < 2) {
+        return angular_velocity_from_poses_;
+      }
+      return angular_velocity_from_odometry_;
+  }
 }
 
 void PoseExtrapolator::UpdateVelocitiesFromPoses() {

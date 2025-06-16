@@ -386,6 +386,16 @@ Eigen::Quaterniond ImuBasedPoseExtrapolator::EstimateGravityOrientation(
       .gravity_from_tracking;
 }
 
+// 20250331 rotation check
+Eigen::Vector3d ImuBasedPoseExtrapolator::GetLinearVelocity() {
+  return Eigen::Vector3d::Zero();
+}
+
+// 20250331 rotation check
+Eigen::Vector3d ImuBasedPoseExtrapolator::GetAngularVelocity() {
+  return Eigen::Vector3d::Zero();
+}
+
 template <typename T>
 void ImuBasedPoseExtrapolator::TrimDequeData(std::deque<T>* data) {
   while (data->size() > 1 && !timed_pose_queue_.empty() &&

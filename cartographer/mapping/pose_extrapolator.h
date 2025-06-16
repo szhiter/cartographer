@@ -35,8 +35,12 @@ namespace mapping {
 // available to improve the extrapolation.
 class PoseExtrapolator : public PoseExtrapolatorInterface {
  public:
+  // 20250328 modify pose extrapolator
+//  explicit PoseExtrapolator(common::Duration pose_queue_duration,
+//                            double imu_gravity_time_constant);
   explicit PoseExtrapolator(common::Duration pose_queue_duration,
-                            double imu_gravity_time_constant);
+                            double imu_gravity_time_constant,
+                            int pose_extrapolate_mode = 0);
 
   PoseExtrapolator(const PoseExtrapolator&) = delete;
   PoseExtrapolator& operator=(const PoseExtrapolator&) = delete;
@@ -62,11 +66,19 @@ class PoseExtrapolator : public PoseExtrapolatorInterface {
   // the tracking frame into a gravity aligned frame.
   Eigen::Quaterniond EstimateGravityOrientation(common::Time time) override;
 
+  // 20250331 rotation check
+  Eigen::Vector3d GetLinearVelocity() override;
+  Eigen::Vector3d GetAngularVelocity() override;
+
  private:
   void UpdateVelocitiesFromPoses();
   void TrimImuData();
   void TrimOdometryData();
   void AdvanceImuTracker(common::Time time, ImuTracker* imu_tracker) const;
+  // 20250328 modify pose extrapolator
+  transform::Rigid3d ExtrapolateDefault(common::Time time);
+  transform::Rigid3d ExtrapolateFromPose(common::Time time);
+  transform::Rigid3d ExtrapolateFromOdometry(common::Time time);
   Eigen::Quaterniond ExtrapolateRotation(common::Time time,
                                          ImuTracker* imu_tracker) const;
   Eigen::Vector3d ExtrapolateTranslation(common::Time time);
@@ -81,6 +93,8 @@ class PoseExtrapolator : public PoseExtrapolatorInterface {
   Eigen::Vector3d angular_velocity_from_poses_ = Eigen::Vector3d::Zero();
 
   const double gravity_time_constant_;
+  // 20250328 modify pose extrapolator
+  const int pose_extrapolate_mode_;
   std::deque<sensor::ImuData> imu_data_;
   std::unique_ptr<ImuTracker> imu_tracker_;
   std::unique_ptr<ImuTracker> odometry_imu_tracker_;

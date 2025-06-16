@@ -88,6 +88,17 @@ void ConstraintBuilder2D::MaybeAddConstraint(
            .first->second.Pulse()) {
     return;
   }
+  // 20250326 loop closure
+  if (num_started_nodes_ - num_finished_nodes_ > 10) {
+    LOG(WARNING) << "Dropped constraint for node " << node_id
+              << " and submap " << submap_id
+              << " (" << num_started_nodes_
+              << ", " << num_finished_nodes_ << ").";
+    return;
+  }
+  // 20250326 loop closure
+  LOG(INFO) << "Add constraint for node " << node_id
+            << " and submap " << submap_id << ".";
 
   absl::MutexLock locker(&mutex_);
   if (when_done_) {
@@ -114,6 +125,17 @@ void ConstraintBuilder2D::MaybeAddConstraint(
 void ConstraintBuilder2D::MaybeAddGlobalConstraint(
     const SubmapId& submap_id, const Submap2D* const submap,
     const NodeId& node_id, const TrajectoryNode::Data* const constant_data) {
+  // 20250326 loop closure
+  if (num_started_nodes_ - num_finished_nodes_ > 10) {
+    LOG(WARNING) << "Dropped constraint global for node " << node_id
+                 << " and submap " << submap_id
+                 << " (" << num_started_nodes_
+                 << ", " << num_finished_nodes_ << ").";
+    return;
+  }
+  // 20250326 loop closure
+  LOG(INFO) << "Add constraint global for node " << node_id
+            << " and submap " << submap_id << ".";
   absl::MutexLock locker(&mutex_);
   if (when_done_) {
     LOG(WARNING)

@@ -13,6 +13,8 @@
 -- limitations under the License.
 
 POSE_GRAPH = {
+  -- 20250326 loop closure
+  use_loop_closure = true,
   optimize_every_n_nodes = 90,
   constraint_builder = {
     sampling_ratio = 0.3,

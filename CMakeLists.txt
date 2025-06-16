@@ -315,7 +315,7 @@ target_link_libraries(${TEST_LIB} PUBLIC ${PROJECT_NAME})
 set_target_properties(${TEST_LIB} PROPERTIES
   COMPILE_FLAGS ${TARGET_COMPILE_FLAGS})
 
-# 20250220 mask for undefined reference to `main'
+# 20250220 undefined reference to `main'
 #foreach(ABS_FIL ${ALL_TESTS})
 #  file(RELATIVE_PATH REL_FIL ${PROJECT_SOURCE_DIR} ${ABS_FIL})
 #  get_filename_component(DIR ${REL_FIL} DIRECTORY)

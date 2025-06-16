@@ -69,6 +69,9 @@ proto::PoseExtrapolatorOptions CreatePoseExtrapolatorOptions(
     common::LuaParameterDictionary* const parameter_dictionary) {
   proto::PoseExtrapolatorOptions options;
   options.set_use_imu_based(parameter_dictionary->GetBool("use_imu_based"));
+  // 20250328 modify pose extrapolator
+  options.set_pose_extrapolate_mode(
+      parameter_dictionary->GetInt("pose_extrapolate_mode"));
   *options.mutable_constant_velocity() =
       CreateConstantVelocityPoseExtrapolatorOptions(
           parameter_dictionary->GetDictionary("constant_velocity").get());

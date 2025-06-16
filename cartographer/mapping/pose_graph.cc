@@ -88,6 +88,9 @@ void PopulateOverlappingSubmapsTrimmerOptions2D(
 proto::PoseGraphOptions CreatePoseGraphOptions(
     common::LuaParameterDictionary* const parameter_dictionary) {
   proto::PoseGraphOptions options;
+  // 20250326 loop closure
+  options.set_use_loop_closure(
+      parameter_dictionary->GetBool("use_loop_closure"));
   options.set_optimize_every_n_nodes(
       parameter_dictionary->GetInt("optimize_every_n_nodes"));
   *options.mutable_constraint_builder_options() =

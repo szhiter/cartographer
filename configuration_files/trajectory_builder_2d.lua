@@ -14,6 +14,10 @@
 
 TRAJECTORY_BUILDER_2D = {
   use_imu_data = true,
+  -- 20250325 distortion calibration
+  use_distortion_calibration = true,
+  -- 20250331 rotation check
+  use_rotation_check = false,
   min_range = 0.,
   max_range = 30.,
   min_z = -0.8,
@@ -63,6 +67,8 @@ TRAJECTORY_BUILDER_2D = {
   imu_gravity_time_constant = 10.,
   pose_extrapolator = {
     use_imu_based = false,
+    -- 20250328 modify pose extrapolator
+    pose_extrapolate_mode = 0,
     constant_velocity = {
       imu_gravity_time_constant = 10.,
       pose_queue_duration = 0.001,

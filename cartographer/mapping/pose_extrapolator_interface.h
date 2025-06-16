@@ -72,6 +72,10 @@ class PoseExtrapolatorInterface {
   // the tracking frame into a gravity aligned frame.
   virtual Eigen::Quaterniond EstimateGravityOrientation(common::Time time) = 0;
 
+  // 20250331 rotation check
+  virtual Eigen::Vector3d GetLinearVelocity() = 0;
+  virtual Eigen::Vector3d GetAngularVelocity() = 0;
+
  protected:
   PoseExtrapolatorInterface() {}
 };

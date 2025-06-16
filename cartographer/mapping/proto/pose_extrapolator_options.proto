@@ -43,6 +43,8 @@ message ImuBasedPoseExtrapolatorOptions {
 
 message PoseExtrapolatorOptions {
   bool use_imu_based = 1;
+  // 20250328 modify pose extrapolator
+  int32 pose_extrapolate_mode = 4;
   ConstantVelocityPoseExtrapolatorOptions constant_velocity = 2;
   ImuBasedPoseExtrapolatorOptions imu_based = 3;
 }
